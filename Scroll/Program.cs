@@ -13,13 +13,17 @@ namespace Scroll
         {
             [Option('i', "input", Required = true, HelpText = "Input file containing region vertices")]
             public string Input { get; set; } = "input.txt";
+            [Option('o', "output", HelpText = "Output folder")]
+            public string Output { get; set; } = "output";
             [Option('c', "combined", HelpText = "Generate map atlas")]
             public bool Atlas { get; set; } = false;
-            [Option("min", HelpText = "Minimum scale level")]
-            public int Min { get; set; } = 1;
-            [Option("max", HelpText = "Maximum scale level")]
+            [Option("min", HelpText = "Minimum scale level, Default = 3")]
+            public int Min { get; set; } = 3;
+            [Option("max", HelpText = "Maximum scale level, Default = 18")]
             public int Max { get; set; } = 18;
-            [Option('s', "scaler", HelpText = "Scaler for map tile")]
+            [Option('l', "level", HelpText = "Certain scale level")]
+            public int Level { get; set; } = -1;
+            [Option('s', "scaler", HelpText = "Scaler for map tiles, 1=256x, 2=512x")]
             public int Scaler { get; set; } = 1;
         }
         
@@ -31,6 +35,11 @@ namespace Scroll
 
         public static void RunWithOptions(Options opt)
         {
+            if (opt.Scaler < 0 || opt.Scaler > 2)
+            {
+                Console.WriteLine("Scaler must be 1 or 2");
+                return;
+            }
             StreamReader input = new StreamReader(opt.Input);
             string vertex;
             var region = new Region();
@@ -43,26 +52,29 @@ namespace Scroll
             }
 
             region.GetBoundingBox(out var coordMin, out var coordMax);
-            
+
+            if (opt.Level > 0)
+                opt.Max = opt.Min = opt.Level;
             for (int z = opt.Min; z <= opt.Max; z++)
             {
                 Console.WriteLine($"Proccessing level {z}");
-                PointI tMin = CoordinateConvertor.ToTileIndex(coordMin, z, (TileScaler) opt.Scaler);
-                PointI tMax = CoordinateConvertor.ToTileIndex(coordMax, z, (TileScaler) opt.Scaler);
+                PointI tMin = CoordinateConvertor.ToTileIndex(coordMin, z, opt.Scaler);
+                PointI tMax = CoordinateConvertor.ToTileIndex(coordMax, z, opt.Scaler);
                 Bitmap[] images = null;
                 int nTileX = tMax.x - tMin.x + 1, nTileY = tMax.y - tMin.y + 1;
                 if (opt.Atlas)
                 {
                     images = new Bitmap[nTileX*nTileY];
                 }
-                var saveFolder = "output/level" + z.ToString();
+
+                var saveFolder = Path.Combine(opt.Output, "level"+z.ToString());
                 Directory.CreateDirectory(saveFolder);
                 for (int iTileX = tMin.x; iTileX <= tMax.x; iTileX++)
                 {
                     for (int iTileY = tMin.y; iTileY <= tMax.y; iTileY++)
                     {
-                        var bytes = Downloader.DownloadTile(iTileX, iTileY, z, (TileScaler)opt.Scaler);
-                        var saveName = $"Tile@({iTileX},{iTileY}).png";
+                        var bytes = Downloader.DownloadTile(iTileX, iTileY, z, opt.Scaler);
+                        var saveName = $"Tile@({iTileX-tMin.x},{iTileY-tMin.y}).png";
                         File.WriteAllBytes(Path.Combine(saveFolder, saveName), bytes);
                         if (opt.Atlas)
                         {
@@ -75,7 +87,7 @@ namespace Scroll
                 }
                 if (opt.Atlas)
                 {
-                    int tileSize = 256 * (int) opt.Scaler;
+                    int tileSize = 256 * opt.Scaler;
                     // merge images
                     var bitmap = new Bitmap(nTileX*tileSize, nTileY*tileSize);
                     using (var g = Graphics.FromImage(bitmap))
@@ -89,7 +101,7 @@ namespace Scroll
                             }
                         }
                     }
-                    bitmap.Save($"output/Level{z}.png");
+                    bitmap.Save(Path.Combine(opt.Output,$"Level{z}.png"));
                 }
             }
             

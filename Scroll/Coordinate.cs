@@ -17,13 +17,6 @@ namespace Scroll
     {
         public double Longtitude, Latitude;
     }
-    
-    public enum TileScaler
-    {
-        X256 = 1,
-        X512 = 2
-    }
-
 
     public class CoordinateConvertor{
         //百度坐标系中经纬度转平面坐标
@@ -157,12 +150,13 @@ namespace Scroll
             return new Coordinate {Longtitude = res[0], Latitude = res[1]};
         }
 
-        public static PointI ToTileIndex(Coordinate coord, int z, TileScaler scaler = TileScaler.X256)
+        public static PointI ToTileIndex(Coordinate coord, int z, int scaler = 1)
         {
             PointD mercator = LatLng2Mercator(coord);
             PointI index;
             double factor = Math.Pow(2, 18 - z);
-            int tileSize = 256 * (int)scaler;
+            // scaler = 2 实际只是输出的时候放大了
+            int tileSize = 256;
             index.x = (int) Math.Floor(mercator.x / factor / tileSize);
             index.y = (int) Math.Floor(mercator.y / factor / tileSize);
             return index;

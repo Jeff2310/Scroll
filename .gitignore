@@ -1,0 +1,11 @@
+[Pp]ackages/
+[Oo]bj/
+[Bb]in/
+
+# Visual Studio cache directory
+.vs/
+
+# Idea settings
+.idea/
+
+*.pdb
